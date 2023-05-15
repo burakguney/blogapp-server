@@ -4,6 +4,7 @@ const dotenv = require('dotenv')
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 const userModel = require('./schemas/User')
 
@@ -17,6 +18,7 @@ const app = express()
 
 app.use(cors({ credentials: true, origin: 'http://localhost:3000' }))
 app.use(express.json())
+app.use(cookieParser())
 
 app.post('/register', async (req, res) => {
     const { username, password } = req.body
@@ -51,15 +53,31 @@ app.post('/login', async (req, res) => {
         }
 
         jwt.sign({ username, id: user._id }, secret, {}, (err, token) => {
-            if (err) {
-                throw err
-            }
-            return res.cookie('token', token).json('OK')
+            if (err) throw err
+            return res.cookie('token', token).json({
+                id: user._id,
+                username
+            })
         })
     } catch (error) {
         console.log(error)
         res.status(400).json(error)
     }
+})
+
+app.get('/profile', (req, res) => {
+    const { token } = req.cookies
+
+    if (token) {
+        jwt.verify(token, secret, {}, (err, info) => {
+            if (err) throw err
+            res.json(info)
+        })
+    }
+})
+
+app.post('/logout', (req, res) => {
+    return res.cookie('token', '').json('logout successfully')
 })
 
 mongoose.connect(mongodb)
