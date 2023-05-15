@@ -5,6 +5,8 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
+const multer = require('multer')
+const uploadMiddleware = multer({ dest: 'uploads/' })
 
 const userModel = require('./schemas/User')
 
@@ -78,6 +80,13 @@ app.get('/profile', (req, res) => {
 
 app.post('/logout', (req, res) => {
     return res.cookie('token', '').json('logout successfully')
+})
+
+app.post('/post', uploadMiddleware.single('file'), (req, res) => {
+    const { originalName } = req.file
+    const parts = originalName.split('.')
+    const ext = parts[parts.length - 1]
+    res.json(ext)
 })
 
 mongoose.connect(mongodb)
