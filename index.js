@@ -2,13 +2,15 @@ const express = require('express')
 const cors = require('cors')
 const dotenv = require('dotenv')
 const mongoose = require('mongoose')
+const userModel = require('./schemas/User')
+const postModel = require('./schemas/Post')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
 const multer = require('multer')
 const uploadMiddleware = multer({ dest: 'uploads/' })
-
-const userModel = require('./schemas/User')
+const fs = require('fs')
+const PostModel = require('./schemas/Post')
 
 dotenv.config()
 const port = process.env.PORT
@@ -82,11 +84,40 @@ app.post('/logout', (req, res) => {
     return res.cookie('token', '').json('logout successfully')
 })
 
-app.post('/post', uploadMiddleware.single('file'), (req, res) => {
-    const { originalName } = req.file
-    const parts = originalName.split('.')
-    const ext = parts[parts.length - 1]
-    res.json(ext)
+app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
+    try {
+        const { originalname, path } = req.file
+        const parts = originalname.split('.')
+        const ext = parts[parts.length - 1]
+        const newPath = path + '.' + ext
+        fs.renameSync(path, newPath)
+
+        const { token } = req.cookies
+
+        if (token) {
+            jwt.verify(token, secret, {}, async (err, info) => {
+                if (err) throw err
+
+                const { title, summary, content } = req.body
+
+                const post = await PostModel.create({
+                    title,
+                    summary,
+                    content,
+                    cover: newPath,
+                    author: info.id
+                })
+                return res.status(201).json(post)
+            })
+        }
+
+    } catch (error) {
+        return res.status(400).json(error)
+    }
+})
+
+app.get('/post', async (req, res) => {
+    res.status(200).json(await PostModel.find())
 })
 
 mongoose.connect(mongodb)
