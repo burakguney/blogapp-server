@@ -11,6 +11,7 @@ const multer = require('multer')
 const uploadMiddleware = multer({ dest: 'uploads/' })
 const fs = require('fs')
 const PostModel = require('./schemas/Post')
+const path = require('path')
 
 dotenv.config()
 const port = process.env.PORT
@@ -23,6 +24,7 @@ const app = express()
 app.use(cors({ credentials: true, origin: 'http://localhost:3000' }))
 app.use(express.json())
 app.use(cookieParser())
+app.use('/uploads', express.static(__dirname + '/uploads'))
 
 app.post('/register', async (req, res) => {
     const { username, password } = req.body
@@ -117,7 +119,21 @@ app.post('/post', uploadMiddleware.single('file'), async (req, res) => {
 })
 
 app.get('/post', async (req, res) => {
-    res.status(200).json(await PostModel.find())
+    res.status(200).json(await PostModel
+        .find()
+        .populate('author', 'username')
+        .sort({ createdAt: -1 })
+        .limit(20)
+    )
+})
+
+app.get('/post/:id', async (req, res) => {
+
+    const { id } = req.params
+
+    const post = await PostModel.findById(id).populate('author', 'username')
+
+    res.status(200).json(post)
 })
 
 mongoose.connect(mongodb)
